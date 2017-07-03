@@ -5,32 +5,27 @@ require('babel-register');
 
 const log = require('bookrc');
 const debug = require('debug')('localtunnel');
-const optimist = require('optimist');
 
-const argv = optimist
-    .usage('Usage: $0 --port [num]')
-    .options('secure', {
-        default: false,
-        describe: 'use this flag to indicate proxy over https'
-    })
-    .options('port', {
-        default: '80',
-        describe: 'listen on this port for outside requests'
-    })
-    .options('max-sockets', {
-        default: 10,
-        describe: 'maximum number of tcp sockets each client is allowed to establish at one time (the tunnels)'
-    })
-    .argv;
+var argv = require('yargs')
+    .usage('Usage: $0 --port [num] --max-sockets [num] --secure')
+    .describe('port', 'Listening port')
+    .describe('secure', 'Indicates communication with proxy should use HTTPS')
+    .boolean('secure')
+    .describe('max-sockets', 'Maximum number of sockets per Localtunnel client')
+    .describe('host', 'Full domain of server, required if using a subdomain')
+    .default('port', '8000')
+    .default('max-sockets', 10)
+    .help('h')
+    .alias('h', 'help')
+    .argv
 
-if (argv.help) {
-    optimist.showHelp();
-    process.exit();
-}
-
-const server = require('../server')({
-    max_tcp_sockets: argv['max-sockets'],
-    secure: argv.secure
+const server = require('../server')(
+{
+    max_tcp_sockets: argv.maxSockets,
+    secure: argv.secure,
+    port: '8000',
+    host: argv.host
+    
 });
 
 server.listen(argv.port, () => {
