@@ -1,17 +1,19 @@
-import log from 'bookrc';
-import express from 'express';
-import tldjs from 'tldjs';
-import on_finished from 'on-finished';
+import BindingAgent from './lib/BindingAgent';
 import Debug from 'debug';
-import http_proxy from 'http-proxy';
+import express from 'express';
 import http from 'http';
+import http_proxy from 'http-proxy';
+import on_finished from 'on-finished';
 import Promise from 'bluebird';
-
 import Proxy from './proxy';
 import rand_id from './lib/rand_id';
-import BindingAgent from './lib/BindingAgent';
+import tldjs from 'tldjs';
 
-const debug = Debug('localtunnel:server');
+var log = {
+  error: Debug('localtunnel:server:eror'),
+  info: Debug('localtunnel:server:info'),
+  debug: Debug('localtunnel:server:debug')
+}
 
 const proxy = http_proxy.createProxyServer({
     target: 'http://localtunnel.github.io'
@@ -235,7 +237,7 @@ module.exports = function(opt) {
         }
 
         const req_id = rand_id();
-        debug('making new client with id %s', req_id);
+        log.debug('making new client with id %s', req_id);
         new_client(req_id, opt, function(err, info) {
             if (err) {
                 res.statusCode = 500;
@@ -279,7 +281,7 @@ module.exports = function(opt) {
             return next(err);
         }
 
-        debug('making new client with id %s', req_id);
+        log.debug('making new client with id %s', req_id);
         new_client(req_id, opt, function(err, info) {
             if (err) {
                 return next(err);
@@ -311,7 +313,7 @@ module.exports = function(opt) {
             console.error('response', err);
         });
 
-        debug('request %s', req.url);
+        log.debug('request %s', req.url);
         if (maybe_bounce(req, res, null, null)) {
             return;
         };

@@ -2,8 +2,6 @@
 
 require('localenv');
 require('babel-register');
-
-const log = require('bookrc');
 const debug = require('debug')('localtunnel');
 
 var argv = require('yargs')
@@ -39,6 +37,4 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
     process.exit();
 });
-
-// vim: ft=javascript
 
