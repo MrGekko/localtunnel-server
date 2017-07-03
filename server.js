@@ -1,5 +1,4 @@
 import BindingAgent from './lib/BindingAgent';
-import Debug from 'debug';
 import express from 'express';
 import http from 'http';
 import http_proxy from 'http-proxy';
@@ -9,10 +8,11 @@ import Proxy from './proxy';
 import rand_id from './lib/rand_id';
 import tldjs from 'tldjs';
 
-var log = {
-  error: Debug('localtunnel:server:eror'),
-  info: Debug('localtunnel:server:info'),
-  debug: Debug('localtunnel:server:debug')
+var log = {}
+var log_config = {
+  error: true,
+  info: false,
+  debug: false
 }
 
 const proxy = http_proxy.createProxyServer({
@@ -196,7 +196,8 @@ function new_client(id, opt, cb) {
 
     const popt = {
         id: id,
-        max_tcp_sockets: opt.max_tcp_sockets
+        max_tcp_sockets: opt.max_tcp_sockets,
+        log_config: log_config
     };
 
     const client = Proxy(popt);
@@ -226,7 +227,17 @@ function new_client(id, opt, cb) {
 
 module.exports = function(opt) {
     opt = opt || {};
-
+    
+    if (opt.log_config) {
+      log_config = opt.log_config
+    } else {
+      opt.log_config = log_config
+    }
+    log = require('./lib/debugify.js')(opt.log_config, 'localtunnel:server')
+        
+    const configuredHost = [opt.host, opt.port].join(':')
+    
+    log.debug('configured host %s', configuredHost)
     const schema = opt.secure ? 'https' : 'http';
 
     const app = express();

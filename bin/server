@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 
-require('localenv');
 require('babel-register');
-const debug = require('debug')('localtunnel');
 
 var argv = require('yargs')
     .usage('Usage: $0 --port [num] --max-sockets [num] --secure')
@@ -13,28 +11,40 @@ var argv = require('yargs')
     .describe('host', 'Full domain of server, required if using a subdomain')
     .default('port', '8000')
     .default('max-sockets', 10)
+    .describe('v', 'Log levels: error, +=info, +=debug')
+    .alias('v', 'verbose')
+    .count('verbose')
     .help('h')
     .alias('h', 'help')
     .argv
+
+var log_config = {
+  error: true,
+  info: (argv.verbose >= 1),
+  debug: (argv.verbose >= 2)
+}
+
+log = require('../lib/debugify.js')(log_config, 'localtunnel:bin:server')
 
 const server = require('../server')(
 {
     max_tcp_sockets: argv.maxSockets,
     secure: argv.secure,
     port: '8000',
-    host: argv.host
-    
+    host: argv.host,
+    log_config: log_config
 });
 
 server.listen(argv.port, () => {
-    debug('server listening on port: %d', server.address().port);
+    log.info('server listening on port: %d', server.address().port);
 });
 
 process.on('SIGINT', () => {
+    log.info('Exiting for SIGINT')
     process.exit();
 });
 
 process.on('SIGTERM', () => {
+    log.info('Exiting for SIGTERM')
     process.exit();
 });
-
