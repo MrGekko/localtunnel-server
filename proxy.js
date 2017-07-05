@@ -93,13 +93,13 @@ Proxy.prototype._handle_socket = function(socket) {
         return socket.end();
     }
 
-    self.debug('new connection from: %s:%s', socket.address().address, socket.address().port);
+    //self.debug('new connection from: %s:%s', socket.address().address, socket.address().port);
 
     // a single connection is enough to keep client id slot open
     clearTimeout(self.conn_timeout);
 
     socket.once('close', function(had_error) {
-        self.debug('closed socket (error: %s)', had_error);
+        //self.debug('closed socket (error: %s)', had_error);
 
         // what if socket was servicing a request at this time?
         // then it will be put back in available after right?
@@ -112,7 +112,7 @@ Proxy.prototype._handle_socket = function(socket) {
         }
 
         // need to track total sockets, not just active available
-        self.debug('remaining client sockets: %s', self.sockets.length);
+        //self.debug('remaining client sockets: %s', self.sockets.length);
 
         // no more sockets for this ident
         if (self.sockets.length === 0) {
