@@ -30,7 +30,7 @@ const server = require('../server')(
 {
     max_tcp_sockets: argv.maxSockets,
     secure: argv.secure,
-    port: '8000',
+    port: argv.port,
     host: argv.host,
     log_config: log_config
 });

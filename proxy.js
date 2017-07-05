@@ -1,6 +1,6 @@
-import net from 'net';
-import EventEmitter from 'events';
-import Debug from 'debug';
+var net = require('net');
+var EventEmitter = require('events');
+var Debug = require('debug');
 
 const Proxy = function(opt) {
     if (!(this instanceof Proxy)) {
@@ -183,4 +183,4 @@ Proxy.prototype._done = function() {
     const self = this;
 };
 
-export default Proxy;
+module.exports = Proxy

@@ -1,29 +1,33 @@
-import BindingAgent from './lib/BindingAgent';
-import express from 'express';
-import http from 'http';
-import http_proxy from 'http-proxy';
-import on_finished from 'on-finished';
-import Promise from 'bluebird';
-import Proxy from './proxy';
-import rand_id from './lib/rand_id';
-import tldjs from 'tldjs';
+'use strict';
 
-var log = {}
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
+
+var BindingAgent = require('./lib/BindingAgent');
+var express = require('express');
+var http = require('http');
+var http_proxy = require('http-proxy');
+var on_finished = require('on-finished');
+var Promise = require('bluebird');
+var Proxy = require('./proxy');
+var rand_id = require('./lib/rand_id');
+var tldjs = require('tldjs');
+
+var log = {};
 var log_config = {
-  error: true,
-  info: false,
-  debug: false
-}
+    error: true,
+    info: false,
+    debug: false
+};
 
 const proxy = http_proxy.createProxyServer({
     target: 'http://localtunnel.github.io'
 });
 
-proxy.on('error', function(err) {
+proxy.on('error', function (err) {
     log.error(err);
 });
 
-proxy.on('proxyReq', function(proxyReq, req, res, options) {
+proxy.on('proxyReq', function (proxyReq, req, res, options) {
     // rewrite the request so it hits the correct url on github
     // also make sure host header is what we expect
     proxyReq.path = '/www' + proxyReq.path;
@@ -46,11 +50,13 @@ function maybe_bounce(req, res, sock, head) {
     // without a hostname, we won't know who the request is for
     const hostname = req.headers.host;
     if (!hostname) {
+        log.debug('Rejecting for lack of hostname');
         return false;
     }
 
     const subdomain = tldjs.getSubdomain(hostname);
     if (!subdomain) {
+        log.debug('Rejecting for lack of subdomain (host=%s)', hostname);
         return false;
     }
 
@@ -63,8 +69,7 @@ function maybe_bounce(req, res, sock, head) {
             res.statusCode = 502;
             res.end(`no active client for '${subdomain}'`);
             req.connection.destroy();
-        }
-        else if (sock) {
+        } else if (sock) {
             sock.destroy();
         }
 
@@ -73,114 +78,119 @@ function maybe_bounce(req, res, sock, head) {
 
     let finished = false;
     if (sock) {
-        sock.once('end', function() {
+        sock.once('end', function () {
             finished = true;
         });
-    }
-    else if (res) {
+    } else if (res) {
         // flag if we already finished before we get a socket
         // we can't respond to these requests
-        on_finished(res, function(err) {
+        on_finished(res, function (err) {
             finished = true;
             req.connection.destroy();
         });
     }
     // not something we are expecting, need a sock or a res
     else {
-        req.connection.destroy();
-        return true;
-    }
+            req.connection.destroy();
+            return true;
+        }
 
     // TODO add a timeout, if we run out of sockets, then just 502
 
     // get client port
-    client.next_socket(async (socket) => {
-        // the request already finished or client disconnected
-        if (finished) {
-            return;
-        }
-
-        // happens when client upstream is disconnected (or disconnects)
-        // and the proxy iterates the waiting list and clears the callbacks
-        // we gracefully inform the user and kill their conn
-        // without this, the browser will leave some connections open
-        // and try to use them again for new requests
-        // we cannot have this as we need bouncy to assign the requests again
-        // TODO(roman) we could instead have a timeout above
-        // if no socket becomes available within some time,
-        // we just tell the user no resource available to service request
-        else if (!socket) {
-            if (res) {
-                res.statusCode = 504;
-                res.end();
+    client.next_socket((() => {
+        var _ref = _asyncToGenerator(function* (socket) {
+            // the request already finished or client disconnected
+            if (finished) {
+                return;
             }
 
-            if (sock) {
-                sock.destroy();
-            }
+            // happens when client upstream is disconnected (or disconnects)
+            // and the proxy iterates the waiting list and clears the callbacks
+            // we gracefully inform the user and kill their conn
+            // without this, the browser will leave some connections open
+            // and try to use them again for new requests
+            // we cannot have this as we need bouncy to assign the requests again
+            // TODO(roman) we could instead have a timeout above
+            // if no socket becomes available within some time,
+            // we just tell the user no resource available to service request
+            else if (!socket) {
+                    if (res) {
+                        res.statusCode = 504;
+                        res.end();
+                    }
 
-            req.connection.destroy();
-            return;
-        }
+                    if (sock) {
+                        sock.destroy();
+                    }
 
-        // websocket requests are special in that we simply re-create the header info
-        // and directly pipe the socket data
-        // avoids having to rebuild the request and handle upgrades via the http client
-        if (res === null) {
-            const arr = [`${req.method} ${req.url} HTTP/${req.httpVersion}`];
-            for (let i=0 ; i < (req.rawHeaders.length-1) ; i+=2) {
-                arr.push(`${req.rawHeaders[i]}: ${req.rawHeaders[i+1]}`);
-            }
+                    req.connection.destroy();
+                    return;
+                }
 
-            arr.push('');
-            arr.push('');
+            // websocket requests are special in that we simply re-create the header info
+            // and directly pipe the socket data
+            // avoids having to rebuild the request and handle upgrades via the http client
+            if (res === null) {
+                const arr = [`${req.method} ${req.url} HTTP/${req.httpVersion}`];
+                for (let i = 0; i < req.rawHeaders.length - 1; i += 2) {
+                    arr.push(`${req.rawHeaders[i]}: ${req.rawHeaders[i + 1]}`);
+                }
 
-            socket.pipe(sock).pipe(socket);
-            socket.write(arr.join('\r\n'));
+                arr.push('');
+                arr.push('');
 
-            await new Promise((resolve) => {
-                socket.once('end', resolve);
-            });
+                socket.pipe(sock).pipe(socket);
+                socket.write(arr.join('\r\n'));
 
-            return;
-        }
-
-        // regular http request
-
-        const agent = new BindingAgent({
-            socket: socket
-        });
-
-        const opt = {
-            path: req.url,
-            agent: agent,
-            method: req.method,
-            headers: req.headers
-        };
-
-        await new Promise((resolve) => {
-            // what if error making this request?
-            const client_req = http.request(opt, function(client_res) {
-                // write response code and headers
-                res.writeHead(client_res.statusCode, client_res.headers);
-
-                client_res.pipe(res);
-                on_finished(client_res, function(err) {
-                    resolve();
+                yield new Promise(function (resolve) {
+                    socket.once('end', resolve);
                 });
+
+                return;
+            }
+
+            // regular http request
+
+            const agent = new BindingAgent({
+                socket: socket
             });
 
-            // happens if the other end dies while we are making the request
-            // so we just end the req and move on
-            // we can't really do more with the response here because headers
-            // may already be sent
-            client_req.on('error', (err) => {
-                req.connection.destroy();
-            });
+            const opt = {
+                path: req.url,
+                agent: agent,
+                method: req.method,
+                headers: req.headers
+            };
 
-            req.pipe(client_req);
+            yield new Promise(function (resolve) {
+                // what if error making this request?
+                const client_req = http.request(opt, function (client_res) {
+                    // write response code and headers
+                    res.writeHead(client_res.statusCode, client_res.headers);
+
+                    client_res.pipe(res);
+                    on_finished(client_res, function (err) {
+                        resolve();
+                    });
+                });
+
+                // happens if the other end dies while we are making the request
+                // so we just end the req and move on
+                // we can't really do more with the response here because headers
+                // may already be sent
+                client_req.on('error', function (err) {
+                    req.connection.destroy();
+                });
+
+                req.pipe(client_req);
+            });
         });
-    });
+
+        return function (_x) {
+            return _ref.apply(this, arguments);
+        };
+    })());
 
     return true;
 }
@@ -206,7 +216,7 @@ function new_client(id, opt, cb) {
     // avoiding races with other clients requesting same id
     clients[id] = client;
 
-    client.on('end', function() {
+    client.on('end', function () {
         --stats.tunnels;
         delete clients[id];
     });
@@ -225,31 +235,31 @@ function new_client(id, opt, cb) {
     });
 }
 
-module.exports = function(opt) {
+module.exports = function (opt) {
     opt = opt || {};
-    
+
     if (opt.log_config) {
-      log_config = opt.log_config
+        log_config = opt.log_config;
     } else {
-      opt.log_config = log_config
+        opt.log_config = log_config;
     }
-    log = require('./lib/debugify.js')(opt.log_config, 'localtunnel:server')
-        
-    const configuredHost = [opt.host, opt.port].join(':')
-    
-    log.debug('configured host %s', configuredHost)
+    log = require('./lib/debugify.js')(opt.log_config, 'localtunnel:server');
+
+    const configuredHost = [opt.host, opt.port].join(':');
+
+    log.debug('configured host %s', configuredHost);
     const schema = opt.secure ? 'https' : 'http';
 
     const app = express();
 
-    app.get('/', function(req, res, next) {
+    app.get('/', function (req, res, next) {
         if (req.query['new'] === undefined) {
             return next();
         }
 
         const req_id = rand_id();
         log.debug('making new client with id %s', req_id);
-        new_client(req_id, opt, function(err, info) {
+        new_client(req_id, opt, function (err, info) {
             if (err) {
                 res.statusCode = 500;
                 return res.end(err.message);
@@ -261,39 +271,39 @@ module.exports = function(opt) {
         });
     });
 
-    app.get('/', function(req, res, next) {
+    app.get('/', function (req, res, next) {
         res.redirect('https://localtunnel.github.io/www/');
     });
 
     // TODO(roman) remove after deploying redirect above
-    app.get('/assets/*', function(req, res, next) {
+    app.get('/assets/*', function (req, res, next) {
         proxy.web(req, res);
     });
 
     // TODO(roman) remove after deploying redirect above
-    app.get('/favicon.ico', function(req, res, next) {
+    app.get('/favicon.ico', function (req, res, next) {
         proxy.web(req, res);
     });
 
-    app.get('/api/status', function(req, res, next) {
+    app.get('/api/status', function (req, res, next) {
         res.json({
             tunnels: stats.tunnels,
-            mem: process.memoryUsage(),
+            mem: process.memoryUsage()
         });
     });
 
-    app.get('/:req_id', function(req, res, next) {
+    app.get('/:req_id', function (req, res, next) {
         const req_id = req.params.req_id;
 
         // limit requested hostnames to 63 characters
-        if (! /^[a-z0-9]{4,63}$/.test(req_id)) {
+        if (!/^[a-z0-9]{4,63}$/.test(req_id)) {
             const err = new Error('Invalid subdomain. Subdomains must be lowercase and between 4 and 63 alphanumeric characters.');
             err.statusCode = 403;
             return next(err);
         }
 
         log.debug('making new client with id %s', req_id);
-        new_client(req_id, opt, function(err, info) {
+        new_client(req_id, opt, function (err, info) {
             if (err) {
                 return next(err);
             }
@@ -302,10 +312,9 @@ module.exports = function(opt) {
             info.url = url;
             res.json(info);
         });
-
     });
 
-    app.use(function(err, req, res, next) {
+    app.use(function (err, req, res, next) {
         const status = err.statusCode || err.status || 500;
         res.status(status).json({
             message: err.message
@@ -314,31 +323,33 @@ module.exports = function(opt) {
 
     const server = http.createServer();
 
-    server.on('request', function(req, res) {
+    server.on('request', function (req, res) {
 
-        req.on('error', (err) => {
-            console.error('request', err);
+        req.on('error', err => {
+            log.error('request error', err);
         });
 
-        res.on('error', (err) => {
-            console.error('response', err);
+        res.on('error', err => {
+            log.error('response error', err);
         });
 
         log.debug('request %s', req.url);
         if (maybe_bounce(req, res, null, null)) {
+            log.debug('Maybe bounce is true');
             return;
         };
+        log.debug('Continuiing with app(req,res)');
 
         app(req, res);
     });
 
-    server.on('upgrade', function(req, socket, head) {
-        req.on('error', (err) => {
-            console.error('ws req', err);
+    server.on('upgrade', function (req, socket, head) {
+        req.on('error', err => {
+            log.error('ws req', err);
         });
 
-        socket.on('error', (err) => {
-            console.error('ws socket', err);
+        socket.on('error', err => {
+            log.error('ws socket', err);
         });
 
         if (maybe_bounce(req, null, socket, head)) {
