@@ -1,6 +1,9 @@
-var net = require('net');
-var EventEmitter = require('events');
-var Debug = require('debug');
+import net from 'net';
+import EventEmitter from 'events';
+import log from 'bookrc';
+import Debug from 'debug';
+
+const debug = Debug('localtunnel:server');
 
 const Proxy = function(opt) {
     if (!(this instanceof Proxy)) {
@@ -12,7 +15,7 @@ const Proxy = function(opt) {
     self.sockets = [];
     self.waiting = [];
     self.id = opt.id;
-    self.log = require('./lib/debugify')( opt.log_config, 'localtunnel:proxy:' + self.id)
+
     // default max is 10
     self.max_tcp_sockets = opt.max_tcp_sockets || 10;
 
@@ -21,6 +24,8 @@ const Proxy = function(opt) {
 
     // track initial user connection setup
     self.conn_timeout = undefined;
+
+    self.debug = Debug(`localtunnel:server:${self.id}`);
 };
 
 Proxy.prototype.__proto__ = EventEmitter.prototype;
@@ -50,7 +55,7 @@ Proxy.prototype.start = function(cb) {
 
     server.listen(function() {
         const port = server.address().port;
-        self.log.debug('tcp server listening on port: %d', port);
+        self.debug('tcp server listening on port: %d', port);
 
         cb(null, {
             // port for lt client tcp connections
@@ -88,13 +93,13 @@ Proxy.prototype._handle_socket = function(socket) {
         return socket.end();
     }
 
-    self.log.debug('new connection from: %s:%s', socket.address().address, socket.address().port);
+    self.debug('new connection from: %s:%s', socket.address().address, socket.address().port);
 
     // a single connection is enough to keep client id slot open
     clearTimeout(self.conn_timeout);
 
     socket.once('close', function(had_error) {
-        self.log.debug('closed socket (error: %s)', had_error);
+        self.debug('closed socket (error: %s)', had_error);
 
         // what if socket was servicing a request at this time?
         // then it will be put back in available after right?
@@ -107,11 +112,11 @@ Proxy.prototype._handle_socket = function(socket) {
         }
 
         // need to track total sockets, not just active available
-        self.log.debug('remaining client sockets: %s', self.sockets.length);
+        self.debug('remaining client sockets: %s', self.sockets.length);
 
         // no more sockets for this ident
         if (self.sockets.length === 0) {
-            self.log.debug('all sockets disconnected');
+            self.debug('all sockets disconnected');
             self._maybe_destroy();
         }
     });
@@ -130,14 +135,14 @@ Proxy.prototype._process_waiting = function() {
     const self = this;
     const wait_cb = self.waiting.shift();
     if (wait_cb) {
-        self.log.debug('handling queued request');
+        self.debug('handling queued request');
         self.next_socket(wait_cb);
     }
 };
 
 Proxy.prototype._cleanup = function() {
     const self = this;
-    self.log.debug('closed tcp socket for client(%s)', self.id);
+    self.debug('closed tcp socket for client(%s)', self.id);
 
     clearTimeout(self.conn_timeout);
 
@@ -154,19 +159,19 @@ Proxy.prototype.next_socket = function(handler) {
     const sock = self.sockets.shift();
 
     if (!sock) {
-        self.log.debug('no more client, queue callback');
+        self.debug('no more client, queue callback');
         self.waiting.push(handler);
         return;
     }
 
-    self.log.debug('processing request');
+    self.debug('processing request');
     handler(sock)
     .catch((err) => {
         log.error(err);
     })
     .finally(() => {
         if (!sock.destroyed) {
-            self.log.debug('retuning socket');
+            self.debug('retuning socket');
             self.sockets.push(sock);
         }
 
@@ -183,4 +188,4 @@ Proxy.prototype._done = function() {
     const self = this;
 };
 
-module.exports = Proxy
+export default Proxy;

@@ -1,50 +1,49 @@
 #!/usr/bin/env node
 
+require('localenv');
 require('babel-register');
 
-var argv = require('yargs')
-    .usage('Usage: $0 --port [num] --max-sockets [num] --secure')
-    .describe('port', 'Listening port')
-    .describe('secure', 'Indicates communication with proxy should use HTTPS')
-    .boolean('secure')
-    .describe('max-sockets', 'Maximum number of sockets per Localtunnel client')
-    .describe('host', 'Full domain of server, required if using a subdomain')
-    .default('port', '8000')
-    .default('max-sockets', 10)
-    .describe('v', 'Log levels: error, +=info, +=debug')
-    .alias('v', 'verbose')
-    .count('verbose')
-    .help('h')
-    .alias('h', 'help')
-    .argv
+const log = require('bookrc');
+const debug = require('debug')('localtunnel');
+const optimist = require('optimist');
 
-var log_config = {
-  error: true,
-  info: (argv.verbose >= 1),
-  debug: (argv.verbose >= 2)
+const argv = optimist
+    .usage('Usage: $0 --port [num]')
+    .options('secure', {
+        default: false,
+        describe: 'use this flag to indicate proxy over https'
+    })
+    .options('port', {
+        default: '80',
+        describe: 'listen on this port for outside requests'
+    })
+    .options('max-sockets', {
+        default: 10,
+        describe: 'maximum number of tcp sockets each client is allowed to establish at one time (the tunnels)'
+    })
+    .argv;
+
+if (argv.help) {
+    optimist.showHelp();
+    process.exit();
 }
 
-log = require('../lib/debugify.js')(log_config, 'localtunnel:bin:server')
-
-const server = require('../server')(
-{
-    max_tcp_sockets: argv.maxSockets,
-    secure: argv.secure,
-    port: argv.port,
-    host: argv.host,
-    log_config: log_config
+const server = require('../server')({
+    max_tcp_sockets: argv['max-sockets'],
+    secure: argv.secure
 });
 
 server.listen(argv.port, () => {
-    log.info('server listening on port: %d', server.address().port);
+    debug('server listening on port: %d', server.address().port);
 });
 
 process.on('SIGINT', () => {
-    log.info('Exiting for SIGINT')
     process.exit();
 });
 
 process.on('SIGTERM', () => {
-    log.info('Exiting for SIGTERM')
     process.exit();
 });
+
+// vim: ft=javascript
+
