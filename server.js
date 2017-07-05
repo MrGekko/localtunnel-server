@@ -47,10 +47,24 @@ function maybe_bounce(req, res, sock, head) {
         return false;
     }
 
-    const subdomain = tldjs.getSubdomain(hostname);
+    var subdomain = tldjs.getSubdomain(hostname);
     if (!subdomain) {
         return false;
     }
+    
+    var hostnames = hostname.split('.')
+	var subdomains = subdomain.split('.')
+	var hostIdx = 0
+	var subdomainIdx = subdomains.length-1
+	while (hostnames[hostIdx] == subdomains[subdomainIdx] && subdomainIdx >= 0 && hostIdx < hostnames.length) {
+		hostIdx++
+		subdomainIdx++
+	}
+	if (subdomainIdx == subdomains.length) {
+		// no non-host subdomains, must be looking for me
+		return false
+	}
+	subdomain = subdomains.slice(0,subdomainIdx).join('.')
 
     const client = clients[subdomain];
 
