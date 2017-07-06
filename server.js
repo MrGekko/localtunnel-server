@@ -325,7 +325,6 @@ module.exports = function(opt) {
             console.error('response', err);
         });
 
-        debug('request %s', req.url);
         if (maybe_bounce(req, res, null, null)) {
             return;
         };

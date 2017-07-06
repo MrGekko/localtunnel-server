@@ -164,7 +164,6 @@ Proxy.prototype.next_socket = function(handler) {
         return;
     }
 
-    self.debug('processing request');
     handler(sock)
     .catch((err) => {
         log.error(err);
