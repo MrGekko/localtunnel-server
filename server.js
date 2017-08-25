@@ -199,11 +199,15 @@ function maybe_bounce(req, res, sock, head) {
 
 // create a new tunnel with `id`
 function new_client(id, opt, cb) {
-
-    // can't ask for id already is use
-    // TODO check this new id again
+  
     if (clients[id]) {
-        id = rand_id();
+      // Trust the most recent request for a socket
+      try {
+        // Close dangling sockets
+        clients[id].sockets.forEach((sock)=>{sock.destroy()})
+      } catch (e) {
+        debug('That was stupid, %s', e)
+      }
     }
 
     const popt = {
