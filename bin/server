@@ -21,6 +21,10 @@ const argv = optimist
         default: 10,
         describe: 'maximum number of tcp sockets each client is allowed to establish at one time (the tunnels)'
     })
+    .options('addr', {
+        default: '0.0.0.0',
+        describe: 'IP address to listen on'
+    })
     .argv;
 
 if (argv.help) {
@@ -33,7 +37,7 @@ const server = require('../server')({
     secure: argv.secure
 });
 
-server.listen(argv.port, () => {
+server.listen(argv.port, argv.addr, () => {
     debug('server listening on port: %d', server.address().port);
 });
 
