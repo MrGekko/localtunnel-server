@@ -42,38 +42,18 @@ const stats = {
 // will wait for a tunnel socket to become available
 function maybe_bounce(req, res, sock, head) {
     // without a hostname, we won't know who the request is for
-    const hostname = req.headers.host;
-    if (!hostname) {
+    const hubname = req.headers["x-hub"];
+    if (!hubname) {
         return false;
     }
 
-    var subdomain = tldjs.getSubdomain(hostname);
-    if (!subdomain) {
-        return false;
-    }
-    
-    var hostnames = hostname.split('.')
-	var subdomains = subdomain.split('.')
-	var hostIdx = 0
-	var subdomainIdx = subdomains.length-1
-	while (hostnames[hostIdx] == subdomains[subdomainIdx] && subdomainIdx >= 0 && hostIdx < hostnames.length) {
-		hostIdx++
-		subdomainIdx++
-	}
-	if (subdomainIdx == subdomains.length) {
-		// no non-host subdomains, must be looking for me
-		return false
-	}
-	subdomain = subdomains.slice(0,subdomainIdx).join('.')
+    const client = clients[hubname];
 
-    const client = clients[subdomain];
-
-    // no such subdomain
     // we use 502 error to the client to signify we can't service the request
     if (!client) {
         if (res) {
             res.statusCode = 502;
-            res.end(`no active client for '${subdomain}'`);
+            res.end(`no active client for '${hubname}'`);
             req.connection.destroy();
         }
         else if (sock) {
@@ -267,7 +247,7 @@ module.exports = function(opt) {
     });
 
     app.get('/', function(req, res, next) {
-        res.redirect('https://localtunnel.github.io/www/');
+        res.redirect('https://halley-assist.com.au');
     });
 
     // TODO(roman) remove after deploying redirect above
