@@ -6,7 +6,6 @@ import Debug from 'debug';
 import http_proxy from 'http-proxy';
 import http from 'http';
 import Promise from 'bluebird';
-
 import Proxy from './proxy';
 import rand_id from './lib/rand_id';
 import BindingAgent from './lib/BindingAgent';
@@ -42,8 +41,9 @@ const stats = {
 // will wait for a tunnel socket to become available
 function maybe_bounce(req, res, sock, head) {
     // without a hostname, we won't know who the request is for
-    const hubname = req.headers["x-hub"];
+    const hubname = req.headers['x-hub'];
     if (!hubname) {
+        debug('No hubname!')
         return false;
     }
 
@@ -59,7 +59,6 @@ function maybe_bounce(req, res, sock, head) {
         else if (sock) {
             sock.destroy();
         }
-
         return true;
     }
 
@@ -184,9 +183,13 @@ function new_client(id, opt, cb) {
       // Trust the most recent request for a socket
       try {
         // Close dangling sockets
-        clients[id].sockets.forEach((sock)=>{sock.destroy()})
+        let oldSocks = clients[id].sockets
+        debug('ending old sockets of %s', id)
+        for (let i=0; i<oldSocks.length; i++) {
+          oldSocks[i].end()
+        }
       } catch (e) {
-        debug('That was stupid, %s', e)
+        debug('ouch, %s', e)
       }
     }
 
@@ -247,7 +250,7 @@ module.exports = function(opt) {
     });
 
     app.get('/', function(req, res, next) {
-        res.redirect('https://halley-assist.com.au');
+        res.redirect('https://halleyassist.com');
     });
 
     // TODO(roman) remove after deploying redirect above

@@ -126,7 +126,14 @@ Proxy.prototype._handle_socket = function(socket) {
         // we don't log here to avoid logging crap for misbehaving clients
         socket.destroy();
     });
-
+    
+    // Don't know whether keepalive does anything
+    socket.setKeepAlive(true, 3*60*1000)
+    
+    // Calls to socket.end are made after clients lose power
+    socket.setTimeout(4*60*1000)
+    socket.on('timeout', socket.end)
+    
     self.sockets.push(socket);
     self._process_waiting();
 };
