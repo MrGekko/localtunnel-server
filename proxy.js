@@ -20,7 +20,7 @@ const Proxy = function(opt) {
     self.max_tcp_sockets = opt.max_tcp_sockets || 10;
 
     // new tcp server to service requests for this client
-    self.server = net.createServer('3000');
+    self.server = net.createServer(3000);
 
     // track initial user connection setup
     self.conn_timeout = undefined;
