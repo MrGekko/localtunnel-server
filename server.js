@@ -250,7 +250,7 @@ module.exports = function(opt) {
     });
 
     app.get('/', function(req, res, next) {
-        res.redirect('https://fitenvaardigopschool.com');
+        res.redirect('https://fitenvaardigopschool.nl');
     });
 
     // TODO(roman) remove after deploying redirect above
